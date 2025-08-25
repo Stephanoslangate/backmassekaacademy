@@ -53,9 +53,5 @@ app.get("/api/personnes", async (req, res) => {
   }
 });
 
-const PORT = 3000;
-app.listen(PORT, () => {
-  console.log(`✅ Serveur lancé sur http://localhost:${PORT}`);
-});
 
 module.exports = app;
