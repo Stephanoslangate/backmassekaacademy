@@ -53,5 +53,9 @@ app.get("/api/personnes", async (req, res) => {
   }
 });
 
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => {
+  console.log(`✅ Serveur lancé sur ${PORT}`);
+});
 
 module.exports = app;
