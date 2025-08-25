@@ -1,6 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const fs = require('fs');
+const mysql = require("mysql2/promise");
 
 const app = express();
 const cors = require('cors');
@@ -9,8 +10,17 @@ app.use(bodyParser.json());
 
 const FILE_PATH = './data.json';
 
+
+// Connexion à la base MySQL (PlanetScale par ex.)
+const pool = mysql.createPool({
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASS,
+  database: process.env.DB_NAME,
+  port: process.env.DB_PORT || 3306
+});
 // Route pour ajouter une personne
-app.post('/personnes', (req, res) => {
+app.post('/api/personnes', async  (req, res) => {
   const { name, password, email, confirmPassword } = req.body;
 
   if (!name || !password || !email || !confirmPassword) {
@@ -18,46 +28,34 @@ app.post('/personnes', (req, res) => {
   }
 
   // Lire le fichier JSON existant
-  fs.readFile(FILE_PATH, 'utf8', (err, data) => {
-    if (err) return res.status(500).json({ message: "Erreur lors de la lecture du fichier" });
+  try {
+    const [result] = await pool.query(
+      "INSERT INTO personnes (nom, prenom, email, confirmPassword) VALUES (?, ?, ?, ?)",
+      [nom, prenom, email,confirmPassword]
+    );
 
-    let personnes = [];
-    try {
-      personnes = JSON.parse(data);
-    } catch (e) {
-      personnes = [];
-    }
-
-    // Ajouter la nouvelle personne
-    const nouvellePersonne = { id: Date.now(), name, password, email, confirmPassword };
-    personnes.push(nouvellePersonne);
-
-    // Réécrire le fichier
-    fs.writeFile(FILE_PATH, JSON.stringify(personnes, null, 2), (err) => {
-      if (err) return res.status(500).json({ message: "Erreur lors de l'écriture du fichier" });
-
-      res.status(201).json({ message: "Personne ajoutée avec succès", personne: nouvellePersonne });
+    res.status(201).json({
+      message: "Personne ajoutée avec succès",
+      personne: { id: result.insertId, nom, prenom, email }
     });
-  });
+  } catch (err) {
+    res.status(500).json({ message: "Erreur lors de l'ajout", error: err.message });
+  }
 });
 
-// Route pour récupérer toutes les personnes
-app.get('/personnes', (req, res) => {
-  fs.readFile(FILE_PATH, 'utf8', (err, data) => {
-    if (err) return res.status(500).json({ message: "Erreur lors de la lecture du fichier" });
-
-    let personnes = [];
-    try {
-      personnes = JSON.parse(data);
-    } catch (e) {
-      personnes = [];
-    }
-
-    res.json(personnes);
-  });
+// Récupérer toutes les personnes
+app.get("/api/personnes", async (req, res) => {
+  try {
+    const [rows] = await pool.query("SELECT * FROM personnes");
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "Erreur lors de la récupération", error: err.message });
+  }
 });
 
 const PORT = 3000;
 app.listen(PORT, () => {
   console.log(`✅ Serveur lancé sur http://localhost:${PORT}`);
 });
+
+module.exports = app;
